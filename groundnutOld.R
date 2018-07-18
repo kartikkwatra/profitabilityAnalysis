@@ -1,23 +1,23 @@
 library(tidyverse)
 
-groundnut <- readxl::read_xlsx("kharif.xlsx",sheet = "groundnut" )
+groundnutCost <- readxl::read_xlsx("kharif.xlsx",sheet = "groundnut" )
 
 # Fiscal year set.
-groundnut <- groundnut %>% mutate(Year = substr(Year,1,4) )
+groundnutCost <- groundnutCost %>% mutate(Year = substr(Year,1,4) )
 
 # State wise % net return over C2
-groundnut %>% filter(State != "Orissa", State != "Orrisa"  ) %>%
+groundnutCost %>% filter(State != "Orissa", State != "Orrisa"  ) %>%
   ggplot() +
   geom_bar(aes( State, percentNetReturnOverC2FHP , fill = Year), stat = "identity", position = "dodge" )
 
 # Removing Orissa
-groundnut <- groundnut %>% filter(State != "Orissa", State != "Orrisa"  )
+groundnutCost <- groundnutCost %>% filter(State != "Orissa", State != "Orrisa"  )
 
 
 # State wise % gross return over A2FL
-groundnut %>%
+groundnutCost %>%
   ggplot() +
-  geom_bar(aes( State, percentNetReturnOverC2FHP , fill = Year), stat = "identity", position = "dodge" )
+  geom_bar(aes( State, percentGrossReturnOverA2FLFHP , fill = Year), stat = "identity", position = "dodge" )
 
 # Average annual growth rates of C2 and FHP
 x <- groundnut %>% group_by(State) %>%

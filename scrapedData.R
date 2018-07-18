@@ -6,6 +6,7 @@ library(lubridate)
 genericpath <- "/media/kartik/disk2/Data/DataStories/Agri data - HIL/Analysis/data/"
 
 combine_data <- function(cropList,yearList,monthList) {
+  cropDf <- data.frame()
   for(crop in cropList) {
     for(year in yearList ) {
       for(month in monthList) {
@@ -19,26 +20,34 @@ combine_data <- function(cropList,yearList,monthList) {
         monthdata <- monthdata %>% mutate(month = month, year = year, date = as.Date(paste0(month,"/15/", year) ,format='%B/%d/%Y') )
         monthdata <- monthdata %>% mutate( fiscal = ifelse(month(date) <= 3, as.numeric(year)-1, as.numeric(year)))
         
-        groundnut <<- rbind(groundnut,monthdata)
+        cropDF <- rbind(cropDF,monthdata)
       }
     }
-  }  
+  } 
+  return(cropDF)
 }
 
 clean_data <- function(cropDF) {
-  return(cropDF %>% filter(X1 != "State", X1 != "Average" )) 
+  return(cropDF %>% filter(X1 != "State", X1 != "Average", !is.na(X2), X2 != "" )) 
+}
+
+filter_by_harvest <- function(crop, cropDF) {
+  dictionary <- monthMatrix %>% filter(Crop == crop) %>% select(- Crop)
+  return(semi_join(cropDF,dictionary)) 
 }
 
 
 # Groundnut
 groundnut <- data.frame()
-cropList <- c("Groundnut pods (raw)")
+cropName <- c("Groundnut pods (raw)")
 monthList <- c('September', 'October', 'November', 'December')
 yearList <- as.character(seq(2006,2017, by=1))
 
-combine_data(cropList,yearList,monthList)
+combine_data(cropName,yearList,monthList)
 groundnut <- clean_data(groundnut)
+groundnut <- groundnut %>% rename(State = X1,Price = X2, Month = month) 
 
+testDF <- filter_by_harvest(cropName,groundnut)
 
 
 groundnut$X2 <- as.numeric(groundnut$X2)
