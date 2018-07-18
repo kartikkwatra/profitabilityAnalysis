@@ -5,8 +5,7 @@ library(lubridate)
 
 genericpath <- "/media/kartik/disk2/Data/DataStories/Agri data - HIL/Analysis/data/"
 
-combine_data <- function(cropList,yearList,monthList) {
-  cropDf <- data.frame()
+combine_data <- function(cropList,yearList,monthList,cropDF,fmonth) {
   for(crop in cropList) {
     for(year in yearList ) {
       for(month in monthList) {
@@ -18,7 +17,7 @@ combine_data <- function(cropList,yearList,monthList) {
         monthdata <- monthdata[[1]]
         monthdata <- monthdata[1:(length(monthdata)-4) ]
         monthdata <- monthdata %>% mutate(month = month, year = year, date = as.Date(paste0(month,"/15/", year) ,format='%B/%d/%Y') )
-        monthdata <- monthdata %>% mutate( fiscal = ifelse(month(date) <= 3, as.numeric(year)-1, as.numeric(year)))
+        monthdata <- monthdata %>% mutate( fiscal = ifelse(month(date) <= fmonth, as.numeric(year)-1, as.numeric(year)))
         
         cropDF <- rbind(cropDF,monthdata)
       }
@@ -28,7 +27,9 @@ combine_data <- function(cropList,yearList,monthList) {
 }
 
 clean_data <- function(cropDF) {
-  return(cropDF %>% filter(X1 != "State", X1 != "Average", !is.na(X2), X2 != "" )) 
+  cropDF$X2 <- str_trim(cropDF$X2)
+  cropDF$X1 <- str_trim(cropDF$X1)
+  return(cropDF %>% filter(X1 != "State", X1 != "Average", !is.na(X2), !is.null(X2), X2 !=  "", X2 != " " )) 
 }
 
 filter_by_harvest <- function(crop, cropDF) {
