@@ -1,34 +1,34 @@
-# Cotton Everything
+## Gram Everything
 library(tidyverse)
 library(rvest)
 library(lubridate)
-library(plotly)
 
 # Get the data from file
-cottonCost <- readxl::read_xlsx("kharif.xlsx",sheet = "cotton" )
+gramCost <- readxl::read_xlsx("rabi.xlsx",sheet = "gram" )
 
-# Fiscal year set.
-#cottonCost <- cottonCost %>% mutate(Year = substr(Year,1,4) )
 
-# Removing Orissa
-#cottonCost <- cottonCost %>% filter(State != "Orissa", State != "Orrisa"  )
+#gramWSP <- gramPricesSubset %>% group_by(fiscal,State)
+#temp <- semi_join(gram,gramCost, by = c("State" = "State", "fiscal" = "Year"))
+unique(gramCost$State)
+
 
 # Getting the prices from file
-cottonPrices <- data.frame()
-cropName <- c("Cotton")
-monthList <- c('October', 'November', 'December', 'January','February','March','April','May' )
-yearList <- as.character(seq(2006,2017, by=1))
+gramPrices <- data.frame()
+cropName <- c("Bengal Gram(Gram)(Whole)")
+monthList <- c('January','February','March','April','May')
+yearList <- as.character(seq(2006,2015, by=1))
 
-cottonPrices <- combine_data(cropName,yearList,monthList,cottonPrices,fmonth = 5)
-cottonPrices <- clean_data(cottonPrices)
-cottonPrices <- cottonPrices %>% rename(State = X1,Price = X2, Month = month) 
-
+gramPrices <- combine_data(cropName,yearList,monthList,gramPrices,fmonth = 5)
+gramPrices <- clean_data(gramPrices)
+gramPrices <- gramPrices %>% rename(State = X1,Price = X2, Month = month) 
+gramPrices$Price <- as.numeric(gramPrices$Price)
 # No of months of Harvest for each crop
 monthMatrix <- readxl::read_xlsx("matrix.xlsx")
 harvestSummary <- monthMatrix %>% group_by(Crop,State) %>% summarise(num = n())
 
+cropName <- c("Bengal Gram")
 # Getting list of states which have atleast x price points per and with available costs
-cottonPricesSubsetLarge <- cottonPrices %>%
+gramPricesSubsetLarge <- gramPrices %>%
   group_by(fiscal,State) %>%
   filter( any( 
     n() >=
@@ -47,21 +47,17 @@ cottonPricesSubsetLarge <- cottonPrices %>%
   )
 
 # Checking for Min Max - Ideally should happen earlier: Just after creating the subset
-str(cottonPricesSubsetLarge)
-cottonPricesSubsetLarge$Price <- as.numeric(cottonPricesSubsetLarge$Price)
-temp <- cottonPricesSubsetLarge %>% group_by(State, fiscal) %>% 
+str(gramPricesSubsetLarge)
+gramPricesSubsetLarge$Price <- as.numeric(gramPricesSubsetLarge$Price)
+temp <- gramPricesSubsetLarge %>% 
   summarise(min = min(Price), max = max(Price))
 
 
-#cottonWSP <- cottonPricesSubset %>% group_by(fiscal,State)
-#temp <- semi_join(cotton,cottonCost, by = c("State" = "State", "fiscal" = "Year"))
-#unique(temp$State)
-
 # Now Cleaning for harvest
-cottonPricesSubsetSmall <-  filter_by_harvest(cropName,cottonPricesSubsetLarge)
+gramPricesSubsetSmall <-  filter_by_harvest(cropName,gramPricesSubsetLarge)
 
 # Imp to check or filter only those groups where the minimum number of data points is satisfied
-cottonPricesSubsetSmaller <- cottonPricesSubsetSmall %>%
+gramPricesSubsetSmaller <- gramPricesSubsetSmall %>%
   group_by(fiscal,State) %>%
   filter( any( 
     n() >=
@@ -78,64 +74,59 @@ cottonPricesSubsetSmaller <- cottonPricesSubsetSmall %>%
 
 # WSP for all 
 # already grouped by fiscal year and state
-cottonPricesSubsetSmaller$Price <- as.numeric(cottonPricesSubsetSmaller$Price)
-cottonPricesSubsetSmaller$fiscal <- as.integer(cottonPricesSubsetSmaller$fiscal)
-cottonWSPSmaller <- cottonPricesSubsetSmaller %>% 
+gramPricesSubsetSmaller$Price <- as.numeric(gramPricesSubsetSmaller$Price)
+gramPricesSubsetSmaller$fiscal <- as.integer(gramPricesSubsetSmaller$fiscal)
+gramWSPSmaller <- gramPricesSubsetSmaller %>% 
   summarise(avgWSP = mean(Price, na.rm = TRUE))
 
-cottonPricesSubsetLarge$Price <- as.numeric(cottonPricesSubsetLarge$Price)
-cottonPricesSubsetLarge$fiscal <- as.integer(cottonPricesSubsetLarge$fiscal)
-cottonWSPLarge <- cottonPricesSubsetLarge %>% 
+gramPricesSubsetLarge$Price <- as.numeric(gramPricesSubsetLarge$Price)
+gramPricesSubsetLarge$fiscal <- as.integer(gramPricesSubsetLarge$fiscal)
+gramWSPLarge <- gramPricesSubsetLarge %>% 
   summarise(avgWSP = mean(Price, na.rm = TRUE))
 
-# Found a difference in the number of cases b/w cottonWSPSmaller and Large, so joining
-temp <- anti_join(cottonWSPLarge,cottonWSPSmaller, by= c("State","fiscal"))
-cottonWSP <- rbind(cottonWSPSmaller,temp)
+# Found a difference in the number of cases b/w gramWSPSmaller and Large, so joining
+temp <- anti_join(gramWSPLarge,gramWSPSmaller, by= c("State","fiscal"))
+gramWSP <- rbind(gramWSPSmaller,temp)
 
 
 # Now joining the Cost and WSP tables: Our Final Table
-cotton <- inner_join(cottonCost,cottonWSP, by = c("State" = "State",  "Year" = "fiscal" ))
+gram <- inner_join(gramCost,gramWSP, by = c("State" = "State",  "Year" = "fiscal" ))
 
 
 ###### ANALYSIS ########
 
 # be careful of periods: should be comparable for both  
 # Average annual growth rates of C2
-#cottonCost$Year <- as.numeric(cottonCost$Year)
-#cottonCost <- cottonCost %>% group_by(State) %>%
+#gramCost$Year <- as.numeric(gramCost$Year)
+#gramCost <- gramCost %>% group_by(State) %>%
 #  arrange(State,Year) %>%
 #  mutate(C2Growth = 100*((C2 - lag(C2,1))/lag(C2,1))/(Year - lag(Year,1) ))
 
 ## net margins
 
-cotton <- cotton %>%
-  mutate( margin = avgWSP - C2, marginPercent = 100*margin/C2)  
-
-cot <- cotton %>%
-  ggplot() +
+gram <- gram %>% filter( State != "Haryana", State != "Jharkhand") %>%
+  mutate( margin = avgWSP - C2, marginPercent = 100*margin/C2)
+ 
+gr <- gram %>% 
+ ggplot() +
   geom_bar( aes(x = State, y = marginPercent,
                 fill = factor(Year),
                 alpha = factor(Year),
-                width = 0.6 ),
-            stat = "identity", position = "dodge") +
+                width = 0.6
+                ) , stat = "identity", position = "dodge") +
   labs(x = "States", y = "Percentage Net Return in Rs/Quintal",
-       title = "Net Returns in Cotton growing states",
+       title = "Net Returns in Gram growing states",
        fill = "Year", alpha = "Year")
 
-ggplotly(cot)
+ggplotly(gr)
 
 # Average annual growth rates of avgWSP and C2 for the same period
-cotton <- cotton %>% group_by(State) %>%
+gram <- gram %>% group_by(State) %>%
   arrange(State,Year) %>%
   mutate(WSPGrowth = 100*((avgWSP - lag(avgWSP,1))/lag(avgWSP,1))/(Year - lag(Year,1) )) %>% 
   mutate(C2Growth = 100*((C2 - lag(C2,1))/lag(C2,1))/(Year - lag(Year,1) ))
 
-cotton %>% group_by(State) %>%
-  summarise(C2AAGR = mean(C2Growth, na.rm = TRUE), WSPAAGR = mean(WSPGrowth, na.rm = TRUE), avgAnnualProfitMarginPercent =  mean(marginPercent, na.rm = TRUE) )
-
-# Removing the 2010 outlier
-cotton %>% filter(Year != "2010") %>%  group_by(State) %>%
-  arrange(State,Year) %>%
-  mutate(WSPGrowth = 100*((avgWSP - lag(avgWSP,1))/lag(avgWSP,1))/(Year - lag(Year,1) )) %>% 
-  mutate(C2Growth = 100*((C2 - lag(C2,1))/lag(C2,1))/(Year - lag(Year,1) )) %>%
-  summarise(C2AAGR = mean(C2Growth, na.rm = TRUE), WSPAAGR = mean(WSPGrowth, na.rm = TRUE), avgAnnualProfitMarginPercent =  mean(marginPercent, na.rm = TRUE) )
+gram %>% group_by(State) %>%
+  summarise(C2AAGR = mean(C2Growth, na.rm = TRUE),
+            WSPAAGR = mean(WSPGrowth, na.rm = TRUE),
+            avgAnnualProfitMarginPercent =  mean(marginPercent, na.rm = TRUE) )

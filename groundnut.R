@@ -16,13 +16,14 @@ groundnutCost <- groundnutCost %>% mutate(Year = substr(Year,1,4) )
 groundnutPrices <- data.frame()
 cropName <- c("Groundnut pods (raw)")
 monthList <- c('September', 'October', 'November', 'December')
-yearList <- as.character(seq(2006,2017, by=1))
+yearList <- as.character(seq(2006,2014, by=1))
 
 groundnutPrices <- combine_data(cropName,yearList,monthList,groundnutPrices,fmonth = 3)
 groundnutPrices <- clean_data(groundnutPrices)
 groundnutPrices <- groundnutPrices %>% rename(State = X1,Price = X2, Month = month) 
 
 # No of months of Harvest for each crop
+monthMatrix <- readxl::read_xlsx("matrix.xlsx")
 harvestSummary <- monthMatrix %>% group_by(Crop,State) %>% summarise(num = n())
 
 # Getting list of states which have atleast 2 price points per and with available costs
@@ -84,12 +85,13 @@ groundnutWSPLarge <- groundnutPricesSubsetLarge %>%
   summarise(avgWSP = mean(Price, na.rm = TRUE))
 
 # Found no difference in the number of cases b/w groundnutWSPSmaller and Large, so using the former
+temp <- anti_join(groundnutWSPLarge,groundnutWSPSmaller, by= c("State","fiscal"))
 groundnutWSP <- groundnutWSPSmaller
 
 
 
 # Now joining the Cost and WSP tables: Our Final Table
-
+groundnutCost$Year <- as.numeric(groundnutCost$Year)
 groundnut <- inner_join(groundnutCost,groundnutWSP, by = c("State" = "State",  "Year" = "fiscal" ))
 
 
@@ -100,10 +102,8 @@ groundnut <- groundnut %>% group_by(State) %>%
   mutate(WSPGrowth = 100*((avgWSP - lag(avgWSP,1))/lag(avgWSP,1))/(Year - lag(Year,1) )) %>% 
   mutate(C2Growth = 100*((C2 - lag(C2,1))/lag(C2,1))/(Year - lag(Year,1) ))
 
-groundnut %>% group_by(State) %>%
-  summarise(C2AAGR = mean(C2Growth, na.rm = TRUE), WSPAAGR = mean(WSPGrowth, na.rm = TRUE),  avgAnnualProfitMarginPercent =  mean(marginPercent, na.rm = TRUE)  )
-
 # be careful of periods: should be comparable for both  
+
 # Average annual growth rates of C2
 #groundnutCost$Year <- as.numeric(groundnutCost$Year)
 #groundnutCost <- groundnutCost %>% group_by(State) %>%
@@ -115,14 +115,31 @@ groundnut %>% group_by(State) %>%
 groundnut <- groundnut %>%
   mutate( margin = avgWSP - C2, marginPercent = 100*margin/C2, priceDiff = FHP- avgWSP)  
 
-groundnut %>%
-  ggplot() +
-  geom_bar( aes(x = State, y = marginPercent, fill = factor(Year) ) , stat = "identity", position = "dodge")
 
+groundnut %>% group_by(State) %>%
+  summarise(C2AAGR = mean(C2Growth, na.rm = TRUE), 
+            WSPAAGR = mean(WSPGrowth, na.rm = TRUE),
+            avgAnnualProfitMarginPercent =  mean(marginPercent, na.rm = TRUE)  )
+
+
+
+gg <- groundnut %>%
+  ggplot() +
+  geom_col( aes(x = State, y = marginPercent,
+                fill = factor(Year),alpha = factor(Year)
+               ) , width = 0.7,
+            stat = "identity",
+            position = "dodge") +
+  labs(x = "States", y = "Percentage Net Return in Rs/Quintal",
+       title = "Net Returns in Groundnut growing states",
+            fill = "Year", alpha = "Year")
+
+gg
+ggplotly(gg)
 # Consistent trend in the difference in prices
 groundnut %>%
   ggplot() +
-  geom_bar( aes(x = State, y = priceDiff, fill = factor(Year) ) , stat = "identity", position = "dodge")
+  geom_bar( aes(x = State, y = priceDiff, fill = factor(Year), alpha = factor(Year %% 1900) ) , stat = "identity", position = "dodge")
 
 #temp <- groundnut %>% group_by(State) %>% filter(!(Year %in% c("2016","2017")  ) ) %>%
 #  arrange(State,Year) %>%

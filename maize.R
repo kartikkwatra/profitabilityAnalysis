@@ -1,34 +1,28 @@
-# Cotton Everything
+# maize Everything
 library(tidyverse)
 library(rvest)
 library(lubridate)
-library(plotly)
 
 # Get the data from file
-cottonCost <- readxl::read_xlsx("kharif.xlsx",sheet = "cotton" )
-
-# Fiscal year set.
-#cottonCost <- cottonCost %>% mutate(Year = substr(Year,1,4) )
-
-# Removing Orissa
-#cottonCost <- cottonCost %>% filter(State != "Orissa", State != "Orrisa"  )
+maizeCost <- readxl::read_xlsx("kharif.xlsx",sheet = "maize" )
+unique(maizeCost$State)
 
 # Getting the prices from file
-cottonPrices <- data.frame()
-cropName <- c("Cotton")
-monthList <- c('October', 'November', 'December', 'January','February','March','April','May' )
-yearList <- as.character(seq(2006,2017, by=1))
+maizePrices <- data.frame()
+cropName <- c("Maize")
+monthList <- c('September', 'October', 'November', 'December' )
+yearList <- as.character(seq(2006,2014, by=1))
 
-cottonPrices <- combine_data(cropName,yearList,monthList,cottonPrices,fmonth = 5)
-cottonPrices <- clean_data(cottonPrices)
-cottonPrices <- cottonPrices %>% rename(State = X1,Price = X2, Month = month) 
+maizePrices <- combine_data(cropName,yearList,monthList,maizePrices,fmonth = 5)
+maizePrices <- clean_data(maizePrices)
+maizePrices <- maizePrices %>% rename(State = X1,Price = X2, Month = month) 
 
 # No of months of Harvest for each crop
 monthMatrix <- readxl::read_xlsx("matrix.xlsx")
 harvestSummary <- monthMatrix %>% group_by(Crop,State) %>% summarise(num = n())
 
 # Getting list of states which have atleast x price points per and with available costs
-cottonPricesSubsetLarge <- cottonPrices %>%
+maizePricesSubsetLarge <- maizePrices %>%
   group_by(fiscal,State) %>%
   filter( any( 
     n() >=
@@ -47,21 +41,21 @@ cottonPricesSubsetLarge <- cottonPrices %>%
   )
 
 # Checking for Min Max - Ideally should happen earlier: Just after creating the subset
-str(cottonPricesSubsetLarge)
-cottonPricesSubsetLarge$Price <- as.numeric(cottonPricesSubsetLarge$Price)
-temp <- cottonPricesSubsetLarge %>% group_by(State, fiscal) %>% 
+str(maizePricesSubsetLarge)
+maizePricesSubsetLarge$Price <- as.numeric(maizePricesSubsetLarge$Price)
+temp <- maizePricesSubsetLarge %>% group_by(State, fiscal) %>% 
   summarise(min = min(Price), max = max(Price))
 
 
-#cottonWSP <- cottonPricesSubset %>% group_by(fiscal,State)
-#temp <- semi_join(cotton,cottonCost, by = c("State" = "State", "fiscal" = "Year"))
+#maizeWSP <- maizePricesSubset %>% group_by(fiscal,State)
+#temp <- semi_join(maize,maizeCost, by = c("State" = "State", "fiscal" = "Year"))
 #unique(temp$State)
 
 # Now Cleaning for harvest
-cottonPricesSubsetSmall <-  filter_by_harvest(cropName,cottonPricesSubsetLarge)
+maizePricesSubsetSmall <-  filter_by_harvest(cropName,maizePricesSubsetLarge)
 
 # Imp to check or filter only those groups where the minimum number of data points is satisfied
-cottonPricesSubsetSmaller <- cottonPricesSubsetSmall %>%
+maizePricesSubsetSmaller <- maizePricesSubsetSmall %>%
   group_by(fiscal,State) %>%
   filter( any( 
     n() >=
@@ -78,64 +72,57 @@ cottonPricesSubsetSmaller <- cottonPricesSubsetSmall %>%
 
 # WSP for all 
 # already grouped by fiscal year and state
-cottonPricesSubsetSmaller$Price <- as.numeric(cottonPricesSubsetSmaller$Price)
-cottonPricesSubsetSmaller$fiscal <- as.integer(cottonPricesSubsetSmaller$fiscal)
-cottonWSPSmaller <- cottonPricesSubsetSmaller %>% 
+maizePricesSubsetSmaller$Price <- as.numeric(maizePricesSubsetSmaller$Price)
+maizePricesSubsetSmaller$fiscal <- as.integer(maizePricesSubsetSmaller$fiscal)
+maizeWSPSmaller <- maizePricesSubsetSmaller %>% 
   summarise(avgWSP = mean(Price, na.rm = TRUE))
 
-cottonPricesSubsetLarge$Price <- as.numeric(cottonPricesSubsetLarge$Price)
-cottonPricesSubsetLarge$fiscal <- as.integer(cottonPricesSubsetLarge$fiscal)
-cottonWSPLarge <- cottonPricesSubsetLarge %>% 
+maizePricesSubsetLarge$Price <- as.numeric(maizePricesSubsetLarge$Price)
+maizePricesSubsetLarge$fiscal <- as.integer(maizePricesSubsetLarge$fiscal)
+maizeWSPLarge <- maizePricesSubsetLarge %>% 
   summarise(avgWSP = mean(Price, na.rm = TRUE))
 
-# Found a difference in the number of cases b/w cottonWSPSmaller and Large, so joining
-temp <- anti_join(cottonWSPLarge,cottonWSPSmaller, by= c("State","fiscal"))
-cottonWSP <- rbind(cottonWSPSmaller,temp)
+# Not joining
+temp <- anti_join(maizeWSPLarge,maizeWSPSmaller, by= c("State","fiscal"))
+maizeWSP <- maizeWSPSmaller
 
 
 # Now joining the Cost and WSP tables: Our Final Table
-cotton <- inner_join(cottonCost,cottonWSP, by = c("State" = "State",  "Year" = "fiscal" ))
+maize <- inner_join(maizeCost,maizeWSP, by = c("State" = "State",  "Year" = "fiscal" ))
 
 
 ###### ANALYSIS ########
 
 # be careful of periods: should be comparable for both  
 # Average annual growth rates of C2
-#cottonCost$Year <- as.numeric(cottonCost$Year)
-#cottonCost <- cottonCost %>% group_by(State) %>%
+#maizeCost$Year <- as.numeric(maizeCost$Year)
+#maizeCost <- maizeCost %>% group_by(State) %>%
 #  arrange(State,Year) %>%
 #  mutate(C2Growth = 100*((C2 - lag(C2,1))/lag(C2,1))/(Year - lag(Year,1) ))
 
 ## net margins
 
-cotton <- cotton %>%
+maize <- maize %>% filter( !(State %in% c("Bihar","Maharashtra","Punjab")) ) %>%
   mutate( margin = avgWSP - C2, marginPercent = 100*margin/C2)  
 
-cot <- cotton %>%
+mz <- maize %>%
   ggplot() +
   geom_bar( aes(x = State, y = marginPercent,
-                fill = factor(Year),
-                alpha = factor(Year),
+                fill = factor(Year),  alpha = factor(Year),
                 width = 0.6 ),
             stat = "identity", position = "dodge") +
   labs(x = "States", y = "Percentage Net Return in Rs/Quintal",
-       title = "Net Returns in Cotton growing states",
+       title = "Net Returns in Maize growing states",
        fill = "Year", alpha = "Year")
 
-ggplotly(cot)
+ggplotly(mz)
 
 # Average annual growth rates of avgWSP and C2 for the same period
-cotton <- cotton %>% group_by(State) %>%
+maize <- maize %>% group_by(State) %>%
   arrange(State,Year) %>%
   mutate(WSPGrowth = 100*((avgWSP - lag(avgWSP,1))/lag(avgWSP,1))/(Year - lag(Year,1) )) %>% 
   mutate(C2Growth = 100*((C2 - lag(C2,1))/lag(C2,1))/(Year - lag(Year,1) ))
 
-cotton %>% group_by(State) %>%
+maize %>% group_by(State) %>%
   summarise(C2AAGR = mean(C2Growth, na.rm = TRUE), WSPAAGR = mean(WSPGrowth, na.rm = TRUE), avgAnnualProfitMarginPercent =  mean(marginPercent, na.rm = TRUE) )
 
-# Removing the 2010 outlier
-cotton %>% filter(Year != "2010") %>%  group_by(State) %>%
-  arrange(State,Year) %>%
-  mutate(WSPGrowth = 100*((avgWSP - lag(avgWSP,1))/lag(avgWSP,1))/(Year - lag(Year,1) )) %>% 
-  mutate(C2Growth = 100*((C2 - lag(C2,1))/lag(C2,1))/(Year - lag(Year,1) )) %>%
-  summarise(C2AAGR = mean(C2Growth, na.rm = TRUE), WSPAAGR = mean(WSPGrowth, na.rm = TRUE), avgAnnualProfitMarginPercent =  mean(marginPercent, na.rm = TRUE) )

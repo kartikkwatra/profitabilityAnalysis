@@ -1,34 +1,34 @@
-# Cotton Everything
+# Arhar Everything
 library(tidyverse)
 library(rvest)
 library(lubridate)
-library(plotly)
 
 # Get the data from file
-cottonCost <- readxl::read_xlsx("kharif.xlsx",sheet = "cotton" )
+arharCost <- readxl::read_xlsx("kharif.xlsx",sheet = "arhar" )
 
 # Fiscal year set.
-#cottonCost <- cottonCost %>% mutate(Year = substr(Year,1,4) )
+arharCost <- arharCost %>% mutate(Year = substr(Year,1,4) )
+unique(arharCost$State)
 
 # Removing Orissa
-#cottonCost <- cottonCost %>% filter(State != "Orissa", State != "Orrisa"  )
+#arharCost <- arharCost %>% filter(State != "Orissa", State != "Orrisa"  )
 
 # Getting the prices from file
-cottonPrices <- data.frame()
-cropName <- c("Cotton")
+arharPrices <- data.frame()
+cropName <- c("Arhar (Tur/Red Gram)(Whole)")
 monthList <- c('October', 'November', 'December', 'January','February','March','April','May' )
-yearList <- as.character(seq(2006,2017, by=1))
+yearList <- as.character(seq(2006,2015, by=1))
 
-cottonPrices <- combine_data(cropName,yearList,monthList,cottonPrices,fmonth = 5)
-cottonPrices <- clean_data(cottonPrices)
-cottonPrices <- cottonPrices %>% rename(State = X1,Price = X2, Month = month) 
+arharPrices <- combine_data(cropName,yearList,monthList,arharPrices,fmonth = 5)
+arharPrices <- clean_data(arharPrices)
+arharPrices <- arharPrices %>% rename(State = X1,Price = X2, Month = month) 
 
 # No of months of Harvest for each crop
 monthMatrix <- readxl::read_xlsx("matrix.xlsx")
 harvestSummary <- monthMatrix %>% group_by(Crop,State) %>% summarise(num = n())
 
 # Getting list of states which have atleast x price points per and with available costs
-cottonPricesSubsetLarge <- cottonPrices %>%
+arharPricesSubsetLarge <- arharPrices %>%
   group_by(fiscal,State) %>%
   filter( any( 
     n() >=
@@ -38,30 +38,30 @@ cottonPricesSubsetLarge <- cottonPrices %>%
         as.numeric(harvestSummary[ (harvestSummary$Crop == cropName) & (harvestSummary$State == State) , 3]) == 3 ~ 2,
         as.numeric(harvestSummary[ (harvestSummary$Crop == cropName) & (harvestSummary$State == State) , 3]) == 4 ~ 2,
         as.numeric(harvestSummary[ (harvestSummary$Crop == cropName) & (harvestSummary$State == State) , 3]) == 5 ~ 3,
-        as.numeric(harvestSummary[ (harvestSummary$Crop == cropName) & (harvestSummary$State == State) , 3]) == 6 ~ 4,
-        as.numeric(harvestSummary[ (harvestSummary$Crop == cropName) & (harvestSummary$State == State) , 3]) == 7 ~ 5,
-        as.numeric(harvestSummary[ (harvestSummary$Crop == cropName) & (harvestSummary$State == State) , 3]) == 8 ~ 5
+        as.numeric(harvestSummary[ (harvestSummary$Crop == cropName) & (harvestSummary$State == State) , 3]) == 6 ~ 3,
+        as.numeric(harvestSummary[ (harvestSummary$Crop == cropName) & (harvestSummary$State == State) , 3]) == 7 ~ 3,
+        as.numeric(harvestSummary[ (harvestSummary$Crop == cropName) & (harvestSummary$State == State) , 3]) == 8 ~ 4
         #TRUE ~ 100
       )
   )
   )
 
 # Checking for Min Max - Ideally should happen earlier: Just after creating the subset
-str(cottonPricesSubsetLarge)
-cottonPricesSubsetLarge$Price <- as.numeric(cottonPricesSubsetLarge$Price)
-temp <- cottonPricesSubsetLarge %>% group_by(State, fiscal) %>% 
+str(arharPricesSubsetLarge)
+arharPricesSubsetLarge$Price <- as.numeric(arharPricesSubsetLarge$Price)
+temp <- arharPricesSubsetLarge %>% group_by(State, fiscal) %>% 
   summarise(min = min(Price), max = max(Price))
 
 
-#cottonWSP <- cottonPricesSubset %>% group_by(fiscal,State)
-#temp <- semi_join(cotton,cottonCost, by = c("State" = "State", "fiscal" = "Year"))
+#arharWSP <- arharPricesSubset %>% group_by(fiscal,State)
+#temp <- semi_join(arhar,arharCost, by = c("State" = "State", "fiscal" = "Year"))
 #unique(temp$State)
 
 # Now Cleaning for harvest
-cottonPricesSubsetSmall <-  filter_by_harvest(cropName,cottonPricesSubsetLarge)
+arharPricesSubsetSmall <-  filter_by_harvest(cropName,arharPricesSubsetLarge)
 
 # Imp to check or filter only those groups where the minimum number of data points is satisfied
-cottonPricesSubsetSmaller <- cottonPricesSubsetSmall %>%
+arharPricesSubsetSmaller <- arharPricesSubsetSmall %>%
   group_by(fiscal,State) %>%
   filter( any( 
     n() >=
@@ -78,64 +78,57 @@ cottonPricesSubsetSmaller <- cottonPricesSubsetSmall %>%
 
 # WSP for all 
 # already grouped by fiscal year and state
-cottonPricesSubsetSmaller$Price <- as.numeric(cottonPricesSubsetSmaller$Price)
-cottonPricesSubsetSmaller$fiscal <- as.integer(cottonPricesSubsetSmaller$fiscal)
-cottonWSPSmaller <- cottonPricesSubsetSmaller %>% 
+arharPricesSubsetSmaller$Price <- as.numeric(arharPricesSubsetSmaller$Price)
+arharPricesSubsetSmaller$fiscal <- as.integer(arharPricesSubsetSmaller$fiscal)
+arharWSPSmaller <- arharPricesSubsetSmaller %>% 
   summarise(avgWSP = mean(Price, na.rm = TRUE))
 
-cottonPricesSubsetLarge$Price <- as.numeric(cottonPricesSubsetLarge$Price)
-cottonPricesSubsetLarge$fiscal <- as.integer(cottonPricesSubsetLarge$fiscal)
-cottonWSPLarge <- cottonPricesSubsetLarge %>% 
+arharPricesSubsetLarge$Price <- as.numeric(arharPricesSubsetLarge$Price)
+arharPricesSubsetLarge$fiscal <- as.integer(arharPricesSubsetLarge$fiscal)
+arharWSPLarge <- arharPricesSubsetLarge %>% 
   summarise(avgWSP = mean(Price, na.rm = TRUE))
 
-# Found a difference in the number of cases b/w cottonWSPSmaller and Large, so joining
-temp <- anti_join(cottonWSPLarge,cottonWSPSmaller, by= c("State","fiscal"))
-cottonWSP <- rbind(cottonWSPSmaller,temp)
+# Found a difference in the number of cases b/w arharWSPSmaller and Large, so joining
+temp <- anti_join(arharWSPLarge,arharWSPSmaller, by= c("State","fiscal"))
+arharWSP <- rbind(arharWSPSmaller,temp)
 
 
+arharCost$Year <- as.numeric(arharCost$Year)
 # Now joining the Cost and WSP tables: Our Final Table
-cotton <- inner_join(cottonCost,cottonWSP, by = c("State" = "State",  "Year" = "fiscal" ))
+arhar <- inner_join(arharCost,arharWSP, by = c("State" = "State",  "Year" = "fiscal" ))
 
 
 ###### ANALYSIS ########
 
 # be careful of periods: should be comparable for both  
 # Average annual growth rates of C2
-#cottonCost$Year <- as.numeric(cottonCost$Year)
-#cottonCost <- cottonCost %>% group_by(State) %>%
+#arharCost$Year <- as.numeric(arharCost$Year)
+#arharCost <- arharCost %>% group_by(State) %>%
 #  arrange(State,Year) %>%
 #  mutate(C2Growth = 100*((C2 - lag(C2,1))/lag(C2,1))/(Year - lag(Year,1) ))
 
 ## net margins
 
-cotton <- cotton %>%
-  mutate( margin = avgWSP - C2, marginPercent = 100*margin/C2)  
+arhar <- arhar %>% filter(State != "Andhra Pradesh") %>%
+  mutate( margin = avgWSP - C2, marginPercent = 100*margin/C2)
 
-cot <- cotton %>%
+ar <- arhar %>%
   ggplot() +
   geom_bar( aes(x = State, y = marginPercent,
-                fill = factor(Year),
-                alpha = factor(Year),
-                width = 0.6 ),
+                fill = factor(Year), alpha = factor(Year), width = 0.6 ),
             stat = "identity", position = "dodge") +
   labs(x = "States", y = "Percentage Net Return in Rs/Quintal",
-       title = "Net Returns in Cotton growing states",
+       title = "Net Returns in Arhar(Tur) growing states",
        fill = "Year", alpha = "Year")
 
-ggplotly(cot)
+ggplotly(ar)
 
+  
 # Average annual growth rates of avgWSP and C2 for the same period
-cotton <- cotton %>% group_by(State) %>%
+arhar <- arhar %>% group_by(State) %>% filter(Year != "2009") %>%
   arrange(State,Year) %>%
   mutate(WSPGrowth = 100*((avgWSP - lag(avgWSP,1))/lag(avgWSP,1))/(Year - lag(Year,1) )) %>% 
   mutate(C2Growth = 100*((C2 - lag(C2,1))/lag(C2,1))/(Year - lag(Year,1) ))
 
-cotton %>% group_by(State) %>%
-  summarise(C2AAGR = mean(C2Growth, na.rm = TRUE), WSPAAGR = mean(WSPGrowth, na.rm = TRUE), avgAnnualProfitMarginPercent =  mean(marginPercent, na.rm = TRUE) )
-
-# Removing the 2010 outlier
-cotton %>% filter(Year != "2010") %>%  group_by(State) %>%
-  arrange(State,Year) %>%
-  mutate(WSPGrowth = 100*((avgWSP - lag(avgWSP,1))/lag(avgWSP,1))/(Year - lag(Year,1) )) %>% 
-  mutate(C2Growth = 100*((C2 - lag(C2,1))/lag(C2,1))/(Year - lag(Year,1) )) %>%
+arhar %>% group_by(State) %>%
   summarise(C2AAGR = mean(C2Growth, na.rm = TRUE), WSPAAGR = mean(WSPGrowth, na.rm = TRUE), avgAnnualProfitMarginPercent =  mean(marginPercent, na.rm = TRUE) )
